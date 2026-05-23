@@ -2,9 +2,19 @@ import type { VatReport } from '../types/vatReport';
 
 const BASE_URL = 'http://localhost:5150/api/vat';
 
-export async function uploadCsv(file: File): Promise<VatReport> {
+export interface UploadParams {
+  file: File;
+  period: string;
+  taxpayerName?: string;
+  taxpayerTaxNumber?: string;
+}
+
+export async function uploadCsv(params: UploadParams): Promise<VatReport> {
   const form = new FormData();
-  form.append('file', file);
+  form.append('file', params.file);
+  form.append('period', params.period);
+  if (params.taxpayerName)      form.append('taxpayerName', params.taxpayerName);
+  if (params.taxpayerTaxNumber) form.append('taxpayerTaxNumber', params.taxpayerTaxNumber);
 
   const res = await fetch(`${BASE_URL}/upload`, { method: 'POST', body: form });
 

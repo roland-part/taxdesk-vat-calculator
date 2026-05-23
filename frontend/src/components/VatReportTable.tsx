@@ -2,35 +2,102 @@ import type { VatReport, VatSection } from '../types/vatReport';
 
 interface Props {
   report: VatReport;
-  onDownloadPdf: () => void;
-  isPdfLoading: boolean;
 }
 
-export function VatReportTable({ report, onDownloadPdf, isPdfLoading }: Props) {
+function formatPeriod(period: string): string {
+  const monthly = period.match(/^(\d{4})-(0[1-9]|1[0-2])$/);
+  if (monthly) {
+    const d = new Date(Number(monthly[1]), Number(monthly[2]) - 1, 1);
+    return d.toLocaleString('en-GB', { month: 'long', year: 'numeric' });
+  }
+  const quarterly = period.match(/^(\d{4})-Q([1-4])$/);
+  if (quarterly) {
+    const labels: Record<string, string> = {
+      '1': 'Jan–Mar', '2': 'Apr–Jun', '3': 'Jul–Sep', '4': 'Oct–Dec',
+    };
+    return `Q${quarterly[2]} ${quarterly[1]} (${labels[quarterly[2]]})`;
+  }
+  return period;
+}
+
+export function VatReportTable({ report }: Props) {
+  const fmt = (n: number) =>
+    new Intl.NumberFormat('hu-HU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+
+  const vatPayable = report.vatPayable;
+  const isPayable  = vatPayable >= 0;
+
   return (
     <div className="report">
       <div className="report-header">
-        <div>
-          <h2>VAT Declaration Report</h2>
-          <p className="report-meta">
-            <span>{report.fileName}</span>
-            <span>·</span>
-            <span>{report.totalInvoices} invoices</span>
-            <span>·</span>
-            <span>Generated {new Date(report.generatedAt).toLocaleString()}</span>
-          </p>
-        </div>
-        <button
-          className="btn-pdf"
-          onClick={onDownloadPdf}
-          disabled={isPdfLoading}
-        >
-          {isPdfLoading ? 'Generating…' : '⬇ Download PDF'}
-        </button>
+        <h2>VAT Declaration Report</h2>
+        <p className="report-meta">
+          <span>{report.fileName}</span>
+          <span>·</span>
+          <span>{report.totalInvoices} invoices</span>
+          <span>·</span>
+          <span>Generated {new Date(report.generatedAt).toLocaleString()}</span>
+        </p>
       </div>
 
-      <Section section={report.sales} title="Sales — Output VAT (Fizetendő ÁFA)" accent="blue" />
+      {/* ── Declaration metadata ── */}
+      <div className="decl-meta">
+        <div className="decl-meta-row">
+          <span className="decl-label">Period</span>
+          <span className="decl-value">{formatPeriod(report.period)}</span>
+        </div>
+        {report.taxpayerName && (
+          <div className="decl-meta-row">
+            <span className="decl-label">Taxpayer</span>
+            <span className="decl-value">{report.taxpayerName}</span>
+          </div>
+        )}
+        {report.taxpayerTaxNumber && (
+          <div className="decl-meta-row">
+            <span className="decl-label">Tax number</span>
+            <span className="decl-value">{report.taxpayerTaxNumber}</span>
+          </div>
+        )}
+      </div>
+
+      {/* ── Warnings ── */}
+      {report.warnings.length > 0 && (
+        <div className="warnings-box">
+          <strong>⚠ Warnings</strong>
+          <ul>{report.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>
+        </div>
+      )}
+
+      <Section section={report.sales}     title="Sales — Output VAT (Fizetendő ÁFA)"     accent="blue" />
       <Section section={report.purchases} title="Purchases — Input VAT (Levonható ÁFA)" accent="green" />
+
+      {/* ── Net VAT position ── */}
+      <div className="net-position">
+        <h3>Net VAT Position</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Output VAT (Sales)</th>
+              <th className="num">Input VAT (Purchases)</th>
+              <th className="num">{isPayable ? 'Payable to NAV' : 'Refundable'}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>{fmt(report.sales.grandTotalVat)}</td>
+              <td className="num">{fmt(report.purchases.grandTotalVat)}</td>
+              <td className={`num net-amount ${isPayable ? 'payable' : 'refundable'}`}>
+                {fmt(Math.abs(vatPayable))}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <p className={`net-label ${isPayable ? 'payable' : 'refundable'}`}>
+          {isPayable
+            ? `▲ HUF ${fmt(vatPayable)} payable to NAV`
+            : `▼ HUF ${fmt(Math.abs(vatPayable))} refundable`}
+        </p>
+      </div>
     </div>
   );
 }

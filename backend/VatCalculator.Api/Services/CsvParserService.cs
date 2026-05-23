@@ -21,7 +21,7 @@ public class CsvParserService : ICsvParserService
         new(StringComparer.OrdinalIgnoreCase) { "27", "18", "5", "0", "AAM" };
 
     private static readonly string[] RequiredHeaders =
-        ["InvoiceId", "Date", "Direction", "PartnerName", "NetAmount", "VatRate", "VatAmount", "GrossAmount"];
+        ["InvoiceId", "PerformanceDate", "Direction", "PartnerName", "NetAmount", "VatRate", "VatAmount", "GrossAmount"];
 
     private const long MaxFileSizeBytes = 10 * 1024 * 1024;
 
@@ -142,7 +142,7 @@ public sealed class InvoiceRecordMap : ClassMap<InvoiceRecord>
     public InvoiceRecordMap()
     {
         Map(m => m.InvoiceId).Name("InvoiceId");
-        Map(m => m.Date).Name("Date");
+        Map(m => m.PerformanceDate).Name("PerformanceDate");
         Map(m => m.Direction).Name("Direction");
         Map(m => m.PartnerName).Name("PartnerName");
         Map(m => m.TaxNumber).Name("TaxNumber").Optional();

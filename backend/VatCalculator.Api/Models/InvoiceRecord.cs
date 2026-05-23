@@ -3,7 +3,7 @@ namespace VatCalculator.Api.Models;
 public class InvoiceRecord
 {
     public string InvoiceId { get; set; } = string.Empty;
-    public DateTime Date { get; set; }
+    public DateTime PerformanceDate { get; set; }
     public TransactionDirection Direction { get; set; }
     public string PartnerName { get; set; } = string.Empty;
     public string? TaxNumber { get; set; }

@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { FileUpload } from './components/FileUpload';
+import { UploadForm } from './components/UploadForm';
 import { VatReportTable } from './components/VatReportTable';
-import { uploadCsv, downloadPdf, ApiError } from './api/vatApi';
+import { uploadCsv, downloadPdf, ApiError, type UploadParams } from './api/vatApi';
 import type { VatReport } from './types/vatReport';
 import './App.css';
 
@@ -13,13 +13,13 @@ export default function App() {
   const [errors, setErrors] = useState<string[]>([]);
   const [isPdfLoading, setIsPdfLoading] = useState(false);
 
-  async function handleUpload(file: File) {
+  async function handleUpload(params: UploadParams) {
     setState('uploading');
     setErrors([]);
     setReport(null);
 
     try {
-      const result = await uploadCsv(file);
+      const result = await uploadCsv(params);
       setReport(result);
       setState('done');
     } catch (err) {
@@ -61,7 +61,7 @@ export default function App() {
 
       <main className="app-main">
         {state !== 'done' && (
-          <FileUpload onUpload={handleUpload} isLoading={state === 'uploading'} />
+          <UploadForm onSubmit={handleUpload} isLoading={state === 'uploading'} />
         )}
 
         {state === 'error' && errors.length > 0 && (
@@ -76,16 +76,15 @@ export default function App() {
 
         {state === 'done' && report && (
           <>
-            <VatReportTable
-              report={report}
-              onDownloadPdf={handleDownloadPdf}
-              isPdfLoading={isPdfLoading}
-            />
-            <div className="reset-row">
-              <button className="btn-secondary" onClick={handleReset}>
-                Upload another file
+            <div className="actions-row">
+              <button className="btn-action" onClick={handleDownloadPdf} disabled={isPdfLoading}>
+                {isPdfLoading ? 'Generating…' : '⬇ Download PDF'}
+              </button>
+              <button className="btn-action" onClick={handleReset}>
+                ↑ Upload another file
               </button>
             </div>
+            <VatReportTable report={report} />
           </>
         )}
       </main>

@@ -1,13 +1,116 @@
 /* ── Layout ── */
 .app { max-width: 960px; margin: 0 auto; padding: 0 16px 48px; }
 
+/* ── Upload form ── */
+.upload-form { display: flex; flex-direction: column; gap: 16px; }
+
+.form-section {
+  border: 1px solid #2e303a;
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin: 0;
+}
+.form-section legend {
+  padding: 0 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.optional { font-weight: 400; text-transform: none; }
+
+.period-toggle { display: flex; gap: 8px; margin-bottom: 14px; }
+.toggle-btn {
+  padding: 6px 16px;
+  border: 1px solid #4b5563;
+  border-radius: 6px;
+  background: transparent;
+  color: #9ca3af;
+  cursor: pointer;
+  font-size: 0.88rem;
+  transition: all 0.15s;
+}
+.toggle-btn.active { border-color: #6b7ce6; color: #a5b4fc; background: #1e2035; }
+
+.period-selectors { display: flex; gap: 12px; }
+.field { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+.field label { font-size: 0.8rem; color: #9ca3af; }
+.field select, .field input {
+  padding: 7px 10px;
+  border: 1px solid #374151;
+  border-radius: 6px;
+  background: #0d0e14;
+  color: #e5e7eb;
+  font-size: 0.88rem;
+}
+.field select:focus, .field input:focus {
+  outline: none;
+  border-color: #6b7ce6;
+}
+.field-row { display: flex; gap: 12px; }
+
+.field-error { color: #f87171; font-size: 0.82rem; margin-top: 6px; }
+
+.btn-submit {
+  padding: 11px 24px;
+  background: #4f46e5;
+  color: #fff;
+  border: none;
+  border-radius: 7px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  align-self: flex-start;
+}
+.btn-submit:hover:not(:disabled) { background: #4338ca; }
+.btn-submit:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* ── Declaration metadata ── */
+.decl-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px 24px;
+  background: #1a1b26;
+  border: 1px solid #2e303a;
+  border-radius: 8px;
+  padding: 14px 18px;
+  margin-bottom: 20px;
+}
+.decl-meta-row { display: flex; flex-direction: column; gap: 2px; }
+.decl-label { font-size: 0.75rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.04em; }
+.decl-value { font-size: 0.9rem; color: #e5e7eb; font-weight: 500; }
+
+/* ── Warnings ── */
+.warnings-box {
+  background: #2a1f0e;
+  border: 1px solid #78350f;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  color: #fcd34d;
+  font-size: 0.88rem;
+}
+.warnings-box ul { padding-left: 18px; margin-top: 6px; }
+.warnings-box li { margin-bottom: 2px; }
+
+/* ── Net VAT position ── */
+.net-position { margin-top: 8px; }
+.net-position h3 { font-size: 1rem; font-weight: 600; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid #4b5563; color: #e5e7eb; }
+.net-amount.payable { color: #f87171; font-weight: 700; }
+.net-amount.refundable { color: #34d399; font-weight: 700; }
+.net-label { margin-top: 8px; font-size: 0.88rem; font-weight: 600; text-align: right; }
+.net-label.payable { color: #f87171; }
+.net-label.refundable { color: #34d399; }
+
 .app-header {
   text-align: center;
   padding: 40px 0 28px;
   border-bottom: 1px solid #dee2e9;
   margin-bottom: 32px;
 }
-.app-header h1 { font-size: 1.75rem; font-weight: 700; color: #0d1b4b; }
+.app-header h1 { font-size: 1.75rem; font-weight: 700; color: #ffffff; }
 .app-header p  { margin-top: 4px; color: #6b7280; font-size: 0.95rem; }
 
 .app-main { display: flex; flex-direction: column; gap: 24px; }
@@ -15,22 +118,22 @@
 /* ── Upload ── */
 .upload-area { width: 100%; }
 .dropzone {
-  border: 2px dashed #a0aec0;
+  border: 2px dashed #4b5563;
   border-radius: 10px;
   padding: 48px 24px;
   text-align: center;
   cursor: pointer;
-  background: #fff;
+  background: #16171d;
   transition: border-color 0.2s, background 0.2s;
 }
 .dropzone:hover, .dropzone.dragover {
-  border-color: #3b6ce6;
-  background: #eef2ff;
+  border-color: #6b7ce6;
+  background: #1e2035;
 }
 .dropzone-icon { font-size: 2.5rem; display: block; margin-bottom: 12px; }
-.dropzone p    { color: #4b5563; line-height: 1.6; }
+.dropzone p    { color: #e5e7eb; line-height: 1.6; }
 .dropzone-hint { font-size: 0.82rem; color: #9ca3af; margin-top: 4px; }
-.uploading     { margin-top: 12px; color: #3b6ce6; font-weight: 600; }
+.uploading     { margin-top: 12px; color: #818cf8; font-weight: 600; }
 .error-msg { color: #dc2626; font-size: 0.88rem; margin-top: 8px; }
 
 /* ── Error box ── */
@@ -46,20 +149,14 @@
 .error-box .btn-secondary { margin-top: 16px; }
 
 /* ── Report ── */
-.report-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-  margin-bottom: 20px;
-}
-.report-header h2 { font-size: 1.3rem; color: #0d1b4b; }
+.report-header { margin-bottom: 20px; }
+.report-header h2 { font-size: 1.3rem; color: #ffffff; }
 .report-meta {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
   font-size: 0.82rem;
-  color: #6b7280;
+  color: #9ca3af;
   margin-top: 4px;
 }
 
@@ -85,21 +182,20 @@ tbody tr:hover { background: #f8fafc; }
 tfoot .total-row td { font-weight: 700; background: #f1f5f9; border-top: 2px solid #cbd5e1; }
 
 /* ── Buttons ── */
-.btn-pdf {
-  padding: 9px 18px;
-  background: #1d4ed8;
-  color: #fff;
-  border: none;
+.btn-action {
+  padding: 9px 20px;
+  background: transparent;
+  color: #e5e7eb;
+  border: 1px solid #4b5563;
   border-radius: 6px;
   font-size: 0.88rem;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 0.15s;
-  flex-shrink: 0;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
 }
-.btn-pdf:hover:not(:disabled) { background: #1e40af; }
-.btn-pdf:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-action:hover:not(:disabled) { border-color: #9ca3af; background: #1e2035; color: #fff; }
+.btn-action:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .btn-secondary {
   padding: 8px 16px;
@@ -112,7 +208,13 @@ tfoot .total-row td { font-weight: 700; background: #f1f5f9; border-top: 2px sol
   transition: background 0.15s;
 }
 .btn-secondary:hover { background: #f9fafb; }
-.reset-row { text-align: center; }
+
+.actions-row {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
 
 .hero {
   position: relative;

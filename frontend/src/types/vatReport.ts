@@ -21,9 +21,15 @@ export interface VatSection {
 export interface VatReport {
   generatedAt: string;
   fileName: string;
+  period: string;
+  taxpayerName?: string;
+  taxpayerTaxNumber?: string;
   totalInvoices: number;
   sales: VatSection;
   purchases: VatSection;
+  /** Positive = payable to NAV, negative = refundable */
+  vatPayable: number;
+  warnings: string[];
 }
 
 export interface ApiError {
