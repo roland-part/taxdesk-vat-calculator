@@ -9,7 +9,7 @@ public record CsvParseResult(List<InvoiceRecord> Records, List<string> Errors, L
 
 public interface ICsvParserService
 {
-    Task<CsvParseResult> ParseAsync(IFormFile file);
+    Task<CsvParseResult> ParseAsync(IFormFile file, CancellationToken cancellationToken = default);
 }
 
 public class CsvParserService : ICsvParserService
@@ -36,7 +36,7 @@ public class CsvParserService : ICsvParserService
 
     private const long MaxFileSizeBytes = 10 * 1024 * 1024;
 
-    public async Task<CsvParseResult> ParseAsync(IFormFile file)
+    public async Task<CsvParseResult> ParseAsync(IFormFile file, CancellationToken cancellationToken = default)
     {
         if (file.Length == 0)
             return new CsvParseResult([], ["The uploaded file is empty."], []);
@@ -62,13 +62,25 @@ public class CsvParserService : ICsvParserService
                 MissingFieldFound = null,
             };
 
+            // ── Binary file detection ─────────────────────────────────────────
+            // Read the first 512 bytes and reject if a null byte (0x00) is found,
+            // which reliably distinguishes binary files (xlsx, pdf, zip, etc.) from text.
+            var rawStream = file.OpenReadStream();
+            var peek = new byte[Math.Min(512, (int)file.Length)];
+            int bytesRead = await rawStream.ReadAsync(peek.AsMemory(0, peek.Length), cancellationToken);
+            if (peek.AsSpan(0, bytesRead).Contains((byte)0))
+                return new CsvParseResult([],
+                    ["The uploaded file appears to be a binary file (e.g. Excel .xlsx). Please export it as a plain CSV text file and re-upload."],
+                    []);
+            rawStream.Seek(0, SeekOrigin.Begin);
+
             // UTF-8 with BOM detection enabled. Files saved as Windows-1252 (e.g. from older
             // Excel "Save As CSV") will cause a DecoderFallbackException here, which is caught
             // below and reported as a clear encoding error rather than silently garbling names.
             var utf8 = new System.Text.UTF8Encoding(
                 encoderShouldEmitUTF8Identifier: false,
                 throwOnInvalidBytes: true);
-            using var reader = new StreamReader(file.OpenReadStream(), utf8, detectEncodingFromByteOrderMarks: true);
+            using var reader = new StreamReader(rawStream, utf8, detectEncodingFromByteOrderMarks: true);
             using var csv = new CsvReader(reader, config);
             csv.Context.RegisterClassMap<InvoiceRecordMap>();
 

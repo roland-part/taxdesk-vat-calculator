@@ -1,4 +1,6 @@
+using Microsoft.AspNetCore.Http.Timeouts;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using VatCalculator.Api.DTOs;
 using VatCalculator.Api.Services;
 
@@ -34,11 +36,14 @@ public class VatController : ControllerBase
     [HttpPost("upload")]
     [RequestSizeLimit(10_485_760)]
     [RequestFormLimits(MultipartBodyLengthLimit = 10_485_760)]
+    [EnableRateLimiting("upload")]
+    [RequestTimeout("upload")]
     public async Task<IActionResult> Upload(
         IFormFile? file,
         [FromForm] string? period,
         [FromForm] string? taxpayerName,
-        [FromForm] string? taxpayerTaxNumber)
+        [FromForm] string? taxpayerTaxNumber,
+        CancellationToken cancellationToken)
     {
         _logger.LogInformation("VAT upload requested. File: {FileName}, Size: {Size} bytes, Period: {Period}",
             file?.FileName ?? "(none)", file?.Length ?? 0, period);
@@ -62,7 +67,7 @@ public class VatController : ControllerBase
             });
         }
 
-        var result = await _csvParser.ParseAsync(file);
+        var result = await _csvParser.ParseAsync(file, cancellationToken);
 
         if (result.Errors.Count > 0)
         {
@@ -96,6 +101,8 @@ public class VatController : ControllerBase
     /// The client sends the report JSON it received from /upload.
     /// </summary>
     [HttpPost("report/pdf")]
+    [EnableRateLimiting("pdf")]
+    [RequestTimeout("pdf")]
     public IActionResult GeneratePdf([FromBody] VatReportDto report)
     {
         _logger.LogInformation("PDF generation requested for report period {Period}, file {FileName}.",
