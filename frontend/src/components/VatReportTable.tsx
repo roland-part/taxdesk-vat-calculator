@@ -1,4 +1,4 @@
-import type { VatReport, VatSection } from '../types/vatReport';
+import type { VatReport, VatSection, VatCategoryLine } from '../types/vatReport';
 
 interface Props {
   report: VatReport;
@@ -78,9 +78,9 @@ export function VatReportTable({ report }: Props) {
         <table>
           <thead>
             <tr>
-              <th>Output VAT (Sales)</th>
-              <th className="num">Input VAT (Purchases)</th>
-              <th className="num">{isPayable ? 'Payable to NAV' : 'Refundable'}</th>
+              <th>Output VAT — HUF (Sales)</th>
+              <th className="num">Input VAT — HUF (Purchases)</th>
+              <th className="num">{isPayable ? 'Payable to NAV — HUF' : 'Refundable — HUF'}</th>
             </tr>
           </thead>
           <tbody>
@@ -103,6 +103,18 @@ export function VatReportTable({ report }: Props) {
   );
 }
 
+function formatLineLabel(line: VatCategoryLine): string {
+  const rateLabel = line.vatRate === 'AAM' ? 'AAM (exempt)' : `${line.vatRate}%`;
+  switch (line.transactionType) {
+    case 'Domestic':                  return rateLabel;
+    case 'ReverseCharge':             return `Reverse charge §142 — ${rateLabel}`;
+    case 'IntraCommunitySale':        return `Intra-Community supply — ${rateLabel}`;
+    case 'IntraCommunityAcquisition': return `Intra-Community acquisition — ${rateLabel}`;
+    case 'Import':                    return `Import — ${rateLabel}`;
+    default:                          return `${line.transactionType} — ${rateLabel}`;
+  }
+}
+
 function Section({ section, title, accent }: { section: VatSection; title: string; accent: string }) {
   const fmt = (n: number) =>
     new Intl.NumberFormat('hu-HU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
@@ -116,17 +128,17 @@ function Section({ section, title, accent }: { section: VatSection; title: strin
         <table>
           <thead>
             <tr>
-              <th>VAT Rate</th>
+              <th>Type / Rate</th>
               <th className="num">Invoices</th>
-              <th className="num">Net Amount</th>
-              <th className="num">VAT Amount</th>
-              <th className="num">Gross Amount</th>
+              <th className="num">Net (HUF)</th>
+              <th className="num">VAT (HUF)</th>
+              <th className="num">Gross (HUF)</th>
             </tr>
           </thead>
           <tbody>
             {section.lines.map((line) => (
-              <tr key={line.vatRate}>
-                <td>{line.vatRate === 'AAM' ? 'AAM (exempt)' : `${line.vatRate}%`}</td>
+              <tr key={`${line.transactionType}-${line.vatRate}`}>
+                <td>{formatLineLabel(line)}</td>
                 <td className="num">{line.invoiceCount}</td>
                 <td className="num">{fmt(line.totalNet)}</td>
                 <td className="num">{fmt(line.totalVat)}</td>

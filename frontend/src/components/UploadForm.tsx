@@ -34,6 +34,18 @@ export function UploadForm({ onSubmit, isLoading }: Props) {
   const [taxpayerName, setTaxpayerName] = useState('');
   const [taxpayerTaxNumber, setTaxpayerTaxNumber] = useState('');
   const [fileError, setFileError] = useState<string | null>(null);
+  const [taxNumberError, setTaxNumberError] = useState<string | null>(null);
+
+  // Hungarian adószám: XXXXXXXX-Y-ZZ
+  //   8 digits · hyphen · ÁFA-kód 1–5 · hyphen · területi szám: 01–20, 22 (large taxpayers), 41 (Budapest), 51
+  const TAX_NUMBER_RE = /^\d{8}-[1-5]-(0[1-9]|1[0-9]|20|22|41|51)$/;
+
+  function validateTaxNumber(value: string): string | null {
+    if (!value.trim()) return null;               // optional field — blank is fine
+    if (!TAX_NUMBER_RE.test(value.trim()))
+      return 'Must match the Hungarian adószám format: XXXXXXXX-Y-ZZ (e.g. 12345678-2-41)';
+    return null;
+  }
 
   function validateFile(f: File): string | null {
     if (!f.name.toLowerCase().endsWith('.csv')) return 'Only .csv files are accepted.';
@@ -56,7 +68,9 @@ export function UploadForm({ onSubmit, isLoading }: Props) {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!file || fileError) return;
+    const taxErr = validateTaxNumber(taxpayerTaxNumber);
+    setTaxNumberError(taxErr);
+    if (!file || fileError || taxErr) return;
     onSubmit({
       file,
       period: buildPeriod(periodType, year, month, quarter),
@@ -131,10 +145,15 @@ export function UploadForm({ onSubmit, isLoading }: Props) {
             <input
               type="text"
               value={taxpayerTaxNumber}
-              onChange={e => setTaxpayerTaxNumber(e.target.value)}
+              onChange={e => {
+                setTaxpayerTaxNumber(e.target.value);
+                setTaxNumberError(validateTaxNumber(e.target.value));
+              }}
               placeholder="e.g. 12345678-2-41"
               maxLength={20}
+              aria-invalid={!!taxNumberError}
             />
+            {taxNumberError && <p className="field-error">{taxNumberError}</p>}
           </div>
         </div>
       </fieldset>
@@ -168,7 +187,7 @@ export function UploadForm({ onSubmit, isLoading }: Props) {
       <button
         type="submit"
         className="btn-submit"
-        disabled={!file || !!fileError || isLoading}
+        disabled={!file || !!fileError || !!taxNumberError || isLoading}
       >
         {isLoading ? 'Processing…' : 'Generate VAT Report'}
       </button>

@@ -28,5 +28,8 @@ frontend/.env.*.local
 .DS_Store
 Thumbs.db
 
+# Logs
+logs/
+
 # Claude Code internal
 .claude/

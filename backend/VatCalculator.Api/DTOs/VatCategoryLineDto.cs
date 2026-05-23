@@ -2,6 +2,7 @@ namespace VatCalculator.Api.DTOs;
 
 public class VatCategoryLineDto
 {
+    public string TransactionType { get; set; } = "Domestic";
     public string VatRate { get; set; } = string.Empty;
     public decimal TotalNet { get; set; }
     public decimal TotalVat { get; set; }

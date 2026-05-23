@@ -1,0 +1,6 @@
+﻿InvoiceId,PerformanceDate,Direction,TransactionType,PartnerName,TaxNumber,NetAmount,VatRate,VatAmount,GrossAmount
+INV-001,2024-01-15,Sale,Domestic,Acme Kft,12345678-1-41,100000,27,27000,127000
+INV-001,2024-01-16,Sale,Domestic,Acme Kft,12345678-1-41,50000,27,13500,63500
+INV-001,2024-01-17,Sale,Domestic,Acme Kft,12345678-1-41,20000,27,5400,25400
+INV-001S,2024-01-18,Sale,Domestic,Acme Kft,12345678-1-41,-100000,27,-27000,-127000
+INV-003,2024-01-19,Purchase,Domestic,Supplier Bt,99887766-1-41,80000,27,21600,101600

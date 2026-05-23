@@ -48,23 +48,29 @@
   outline: none;
   border-color: #6b7ce6;
 }
+.field input[aria-invalid="true"] {
+  border-color: #f87171;
+}
+.field input[aria-invalid="true"]:focus {
+  border-color: #f87171;
+}
 .field-row { display: flex; gap: 12px; }
 
 .field-error { color: #f87171; font-size: 0.82rem; margin-top: 6px; }
 
 .btn-submit {
   padding: 11px 24px;
-  background: #4f46e5;
-  color: #fff;
-  border: none;
+  background: transparent;
+  color: #e5e7eb;
+  border: 1px solid #4b5563;
   border-radius: 7px;
   font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
   align-self: flex-start;
 }
-.btn-submit:hover:not(:disabled) { background: #4338ca; }
+.btn-submit:hover:not(:disabled) { border-color: #9ca3af; background: #1e2035; color: #fff; }
 .btn-submit:disabled { opacity: 0.45; cursor: not-allowed; }
 
 /* ── Declaration metadata ── */

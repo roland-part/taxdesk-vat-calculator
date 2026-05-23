@@ -1,0 +1,3 @@
+﻿InvoiceId,Direction,TransactionType,PartnerName,TaxNumber,VatRate,VatAmount,GrossAmount
+INV-001,Sale,Domestic,Acme Kft,12345678-1-41,27,27000,127000
+INV-002,Purchase,Domestic,Supplier Bt,99887766-1-41,18,5400,35400

@@ -25,9 +25,9 @@ public class VatReportPdfService : IVatReportPdfService
 
                 page.Header().Column(col =>
                 {
-                    col.Item().Text("Hungarian VAT Declaration Report")
+                    col.Item().Text("Hungarian VAT Declaration Summary")
                         .FontSize(18).Bold();
-                    col.Item().Text("ÁFA Bevallás Összesítő")
+                    col.Item().Text("ÁFA Bevallás Összesítő  ·  Form 65 series (2565 / 2665)")
                         .FontSize(13).FontColor(Colors.Grey.Darken1);
                     col.Item().PaddingTop(4).LineHorizontal(1).LineColor(Colors.Grey.Lighten1);
                 });
@@ -121,17 +121,17 @@ public class VatReportPdfService : IVatReportPdfService
 
                 table.Header(h =>
                 {
-                    h.Cell().Element(HeaderCell).Text("VAT Rate");
+                    h.Cell().Element(HeaderCell).Text("Type / Rate");
                     h.Cell().Element(HeaderCell).AlignRight().Text("Invoices");
-                    h.Cell().Element(HeaderCell).AlignRight().Text("Net Amount");
-                    h.Cell().Element(HeaderCell).AlignRight().Text("VAT Amount");
-                    h.Cell().Element(HeaderCell).AlignRight().Text("Gross Amount");
+                    h.Cell().Element(HeaderCell).AlignRight().Text("Net (HUF)");
+                    h.Cell().Element(HeaderCell).AlignRight().Text("VAT (HUF)");
+                    h.Cell().Element(HeaderCell).AlignRight().Text("Gross (HUF)");
                 });
 
                 bool shade = false;
                 foreach (var line in section.Lines)
                 {
-                    var label = line.VatRate == "AAM" ? "AAM (exempt)" : $"{line.VatRate}%";
+                    var label = FormatLineLabel(line.TransactionType, line.VatRate);
                     var bg = shade ? Colors.Grey.Lighten4 : Colors.White;
                     shade = !shade;
 
@@ -169,8 +169,8 @@ public class VatReportPdfService : IVatReportPdfService
 
                 t.Header(h =>
                 {
-                    h.Cell().Element(HeaderCell).Text("Output VAT (Sales)");
-                    h.Cell().Element(HeaderCell).AlignCenter().Text("Input VAT (Purchases)");
+                    h.Cell().Element(HeaderCell).Text("Output VAT — HUF (Sales)");
+                    h.Cell().Element(HeaderCell).AlignCenter().Text("Input VAT — HUF (Purchases)");
                     h.Cell().Element(HeaderCell).AlignRight().Text(label);
                 });
 
@@ -180,6 +180,20 @@ public class VatReportPdfService : IVatReportPdfService
                     .Text(Fmt(Math.Abs(payable))).Bold().FontColor(color);
             });
         });
+    }
+
+    private static string FormatLineLabel(string transactionType, string vatRate)
+    {
+        var rateLabel = vatRate == "AAM" ? "AAM (exempt)" : $"{vatRate}%";
+        return transactionType switch
+        {
+            "Domestic"                  => rateLabel,
+            "ReverseCharge"             => $"Reverse charge §142 — {rateLabel}",
+            "IntraCommunitySale"        => $"Intra-Community supply — {rateLabel}",
+            "IntraCommunityAcquisition" => $"Intra-Community acquisition — {rateLabel}",
+            "Import"                    => $"Import — {rateLabel}",
+            _                           => $"{transactionType} — {rateLabel}",
+        };
     }
 
     private static string FormatPeriod(string period)

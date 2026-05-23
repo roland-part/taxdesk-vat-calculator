@@ -1,0 +1,5 @@
+﻿InvoiceId,PerformanceDate,Direction,TransactionType,PartnerName,TaxNumber,NetAmount,VatRate,VatAmount,GrossAmount
+INV-001,2024-01-15,Purchase,IntraCommunitySale,Österreich GmbH,,120000,27,32400,152400
+INV-002,2024-01-16,Sale,IntraCommunityAcquisition,Slovak s.r.o.,,80000,0,0,80000
+INV-003,2024-01-17,Sale,Import,Non-EU Supplier,,50000,27,13500,63500
+INV-004,2024-01-18,Purchase,ReverseCharge,Építő Kft,77665544-1-41,200000,27,54000,254000

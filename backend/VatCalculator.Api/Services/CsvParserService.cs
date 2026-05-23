@@ -20,6 +20,17 @@ public class CsvParserService : ICsvParserService
     private static readonly HashSet<string> ValidVatRates =
         new(StringComparer.OrdinalIgnoreCase) { "27", "18", "5", "0", "AAM" };
 
+    private static readonly HashSet<string> ValidTransactionTypes =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            "Domestic", "IntraCommunitySale", "IntraCommunityAcquisition", "Import", "ReverseCharge"
+        };
+
+    // Hungarian adószám: XXXXXXXX-Y-ZZ
+    private static readonly System.Text.RegularExpressions.Regex HungarianTaxNumberRe =
+        new(@"^\d{8}-[1-5]-(0[1-9]|1[0-9]|20|22|41|51)$",
+            System.Text.RegularExpressions.RegexOptions.Compiled);
+
     private static readonly string[] RequiredHeaders =
         ["InvoiceId", "PerformanceDate", "Direction", "PartnerName", "NetAmount", "VatRate", "VatAmount", "GrossAmount"];
 
@@ -37,9 +48,10 @@ public class CsvParserService : ICsvParserService
         if (!AllowedExtensions.Contains(extension))
             return new CsvParseResult([], [$"Invalid file type '{extension}'. Only .csv files are accepted."], []);
 
-        var records = new List<InvoiceRecord>();
-        var errors   = new List<string>();
-        var warnings = new List<string>();
+        var records    = new List<InvoiceRecord>();
+        var errors     = new List<string>();
+        var warnings   = new List<string>();
+        var seenIds    = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         try
         {
@@ -50,7 +62,13 @@ public class CsvParserService : ICsvParserService
                 MissingFieldFound = null,
             };
 
-            using var reader = new StreamReader(file.OpenReadStream());
+            // UTF-8 with BOM detection enabled. Files saved as Windows-1252 (e.g. from older
+            // Excel "Save As CSV") will cause a DecoderFallbackException here, which is caught
+            // below and reported as a clear encoding error rather than silently garbling names.
+            var utf8 = new System.Text.UTF8Encoding(
+                encoderShouldEmitUTF8Identifier: false,
+                throwOnInvalidBytes: true);
+            using var reader = new StreamReader(file.OpenReadStream(), utf8, detectEncodingFromByteOrderMarks: true);
             using var csv = new CsvReader(reader, config);
             csv.Context.RegisterClassMap<InvoiceRecordMap>();
 
@@ -80,11 +98,14 @@ public class CsvParserService : ICsvParserService
                         continue;
                     }
 
-                    record.VatRate = record.VatRate.ToUpperInvariant();
-                    record.InvoiceId = Sanitize(record.InvoiceId);
+                    record.VatRate     = record.VatRate.ToUpperInvariant();
+                    record.InvoiceId   = Sanitize(record.InvoiceId);
                     record.PartnerName = Sanitize(record.PartnerName);
                     if (record.TaxNumber != null)
                         record.TaxNumber = Sanitize(record.TaxNumber);
+
+                    if (!seenIds.Add(record.InvoiceId))
+                        warnings.Add($"Row {rowNumber}: Duplicate InvoiceId '{record.InvoiceId}' — this invoice will be counted twice.");
 
                     warnings.AddRange(CrossValidateRecord(record, rowNumber));
                     records.Add(record);
@@ -94,6 +115,12 @@ public class CsvParserService : ICsvParserService
                     errors.Add($"Row {rowNumber}: could not parse — {ex.InnerException?.Message ?? ex.Message}");
                 }
             }
+        }
+        catch (System.Text.DecoderFallbackException)
+        {
+            return new CsvParseResult([],
+                ["The file contains invalid UTF-8 characters. Please save the CSV as UTF-8 (in Excel: File → Save As → CSV UTF-8 (with BOM)) and re-upload."],
+                []);
         }
         catch (Exception ex)
         {
@@ -113,17 +140,29 @@ public class CsvParserService : ICsvParserService
         if (string.IsNullOrWhiteSpace(r.InvoiceId))
             errors.Add($"Row {row}: InvoiceId is required.");
 
+        if (string.IsNullOrWhiteSpace(r.PartnerName))
+            errors.Add($"Row {row}: PartnerName is required.");
+        else if (r.PartnerName.Length > 200)
+            errors.Add($"Row {row}: PartnerName must not exceed 200 characters.");
+
+        if (!string.IsNullOrWhiteSpace(r.TaxNumber) && !HungarianTaxNumberRe.IsMatch(r.TaxNumber))
+            errors.Add($"Row {row}: TaxNumber '{r.TaxNumber}' is not a valid Hungarian adószám (expected XXXXXXXX-Y-ZZ, e.g. 12345678-2-41).");
+
         if (!ValidVatRates.Contains(r.VatRate))
-            errors.Add($"Row {row}: Invalid VatRate '{r.VatRate}'. Allowed: 27, 18, 5, 0, AAM.");
+            errors.Add($"Row {row}: Invalid VatRate '{r.VatRate}'. Allowed values: 27, 18, 5, 0, AAM.");
 
-        if (r.NetAmount < 0)
-            errors.Add($"Row {row}: NetAmount must not be negative.");
+        if (r.PerformanceDate > DateTime.UtcNow.Date)
+            errors.Add($"Row {row}: PerformanceDate {r.PerformanceDate:yyyy-MM-dd} is in the future.");
 
-        if (r.VatAmount < 0)
-            errors.Add($"Row {row}: VatAmount must not be negative.");
+        // Direction/TransactionType consistency
+        if (r.TransactionType == TransactionType.IntraCommunitySale && r.Direction != TransactionDirection.Sale)
+            errors.Add($"Row {row}: TransactionType 'IntraCommunitySale' is only valid for Direction 'Sale'.");
 
-        if (r.GrossAmount < 0)
-            errors.Add($"Row {row}: GrossAmount must not be negative.");
+        if (r.TransactionType == TransactionType.IntraCommunityAcquisition && r.Direction != TransactionDirection.Purchase)
+            errors.Add($"Row {row}: TransactionType 'IntraCommunityAcquisition' is only valid for Direction 'Purchase'.");
+
+        if (r.TransactionType == TransactionType.Import && r.Direction != TransactionDirection.Purchase)
+            errors.Add($"Row {row}: TransactionType 'Import' is only valid for Direction 'Purchase'.");
 
         return errors;
     }
@@ -171,11 +210,29 @@ public sealed class InvoiceRecordMap : ClassMap<InvoiceRecord>
         Map(m => m.InvoiceId).Name("InvoiceId");
         Map(m => m.PerformanceDate).Name("PerformanceDate");
         Map(m => m.Direction).Name("Direction");
+        Map(m => m.TransactionType).Name("TransactionType")
+            .Optional()
+            .TypeConverter<TransactionTypeConverter>();
         Map(m => m.PartnerName).Name("PartnerName");
         Map(m => m.TaxNumber).Name("TaxNumber").Optional();
         Map(m => m.NetAmount).Name("NetAmount");
         Map(m => m.VatRate).Name("VatRate");
         Map(m => m.VatAmount).Name("VatAmount");
         Map(m => m.GrossAmount).Name("GrossAmount");
+    }
+}
+
+/// <summary>
+/// Parses TransactionType from a CSV cell, defaulting to Domestic for absent or blank values.
+/// </summary>
+public sealed class TransactionTypeConverter : CsvHelper.TypeConversion.DefaultTypeConverter
+{
+    public override object? ConvertFromString(string? text, CsvHelper.IReaderRow row, CsvHelper.Configuration.MemberMapData memberMapData)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return TransactionType.Domestic;
+        if (Enum.TryParse<TransactionType>(text.Trim(), ignoreCase: true, out var result)) return result;
+        throw new InvalidOperationException(
+            $"Invalid TransactionType '{text.Trim()}'. " +
+            "Allowed values: Domestic, IntraCommunitySale, IntraCommunityAcquisition, Import, ReverseCharge.");
     }
 }

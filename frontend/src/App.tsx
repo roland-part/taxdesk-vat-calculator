@@ -11,6 +11,7 @@ export default function App() {
   const [state, setState] = useState<AppState>('idle');
   const [report, setReport] = useState<VatReport | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
+  const [errorHeading, setErrorHeading] = useState<string>('Could not process the file');
   const [isPdfLoading, setIsPdfLoading] = useState(false);
 
   async function handleUpload(params: UploadParams) {
@@ -23,11 +24,18 @@ export default function App() {
       setReport(result);
       setState('done');
     } catch (err) {
-      if (err instanceof ApiError && err.fieldErrors?.['csv']) {
-        setErrors(err.fieldErrors['csv']);
+      if (err instanceof ApiError) {
+        // Collect every message from every field-error bucket, then fall back to the top-level message.
+        const fieldMessages = err.fieldErrors
+          ? Object.values(err.fieldErrors).flat()
+          : [];
+        setErrorHeading(err.message);
+        setErrors(fieldMessages.length > 0 ? fieldMessages : []);
       } else if (err instanceof Error) {
+        setErrorHeading('Could not process the file');
         setErrors([err.message]);
       } else {
+        setErrorHeading('Could not process the file');
         setErrors(['An unexpected error occurred.']);
       }
       setState('error');
@@ -50,6 +58,7 @@ export default function App() {
     setState('idle');
     setReport(null);
     setErrors([]);
+    setErrorHeading('Could not process the file');
   }
 
   return (
@@ -64,12 +73,12 @@ export default function App() {
           <UploadForm onSubmit={handleUpload} isLoading={state === 'uploading'} />
         )}
 
-        {state === 'error' && errors.length > 0 && (
+        {state === 'error' && (
           <div className="error-box">
-            <h3>Could not process the file</h3>
-            <ul>
-              {errors.map((e, i) => <li key={i}>{e}</li>)}
-            </ul>
+            <h3>{errorHeading}</h3>
+            {errors.length > 0 && (
+              <ul>{errors.map((e, i) => <li key={i}>{e}</li>)}</ul>
+            )}
             <button className="btn-secondary" onClick={handleReset}>Try again</button>
           </div>
         )}

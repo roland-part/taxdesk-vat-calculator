@@ -21,6 +21,15 @@ public class VatCalculationService : IVatCalculationService
         ["27"] = 0, ["18"] = 1, ["5"] = 2, ["0"] = 3, ["AAM"] = 4,
     };
 
+    private static readonly Dictionary<TransactionType, int> TransactionTypeOrder = new()
+    {
+        [TransactionType.Domestic]                  = 0,
+        [TransactionType.ReverseCharge]             = 1,
+        [TransactionType.IntraCommunitySale]        = 2,
+        [TransactionType.IntraCommunityAcquisition] = 3,
+        [TransactionType.Import]                    = 4,
+    };
+
     // Matches "2024-01" (monthly), "2024-Q2" (quarterly), or "2024" (annual)
     private static readonly Regex MonthlyPattern   = new(@"^(\d{4})-(0[1-9]|1[0-2])$");
     private static readonly Regex QuarterlyPattern = new(@"^(\d{4})-Q([1-4])$");
@@ -55,15 +64,17 @@ public class VatCalculationService : IVatCalculationService
     {
         var lines = records
             .Where(r => r.Direction == direction)
-            .GroupBy(r => r.VatRate)
-            .OrderBy(g => VatRateOrder.GetValueOrDefault(g.Key, int.MaxValue))
+            .GroupBy(r => new { r.TransactionType, r.VatRate })
+            .OrderBy(g => TransactionTypeOrder.GetValueOrDefault(g.Key.TransactionType, int.MaxValue))
+            .ThenBy(g => VatRateOrder.GetValueOrDefault(g.Key.VatRate, int.MaxValue))
             .Select(g => new VatCategoryLineDto
             {
-                VatRate      = g.Key,
-                TotalNet     = g.Sum(r => r.NetAmount),
-                TotalVat     = g.Sum(r => r.VatAmount),
-                TotalGross   = g.Sum(r => r.GrossAmount),
-                InvoiceCount = g.Count(),
+                TransactionType = g.Key.TransactionType.ToString(),
+                VatRate         = g.Key.VatRate,
+                TotalNet        = g.Sum(r => r.NetAmount),
+                TotalVat        = g.Sum(r => r.VatAmount),
+                TotalGross      = g.Sum(r => r.GrossAmount),
+                InvoiceCount    = g.Count(),
             })
             .ToList();
 

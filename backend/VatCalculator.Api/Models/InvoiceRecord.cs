@@ -5,6 +5,7 @@ public class InvoiceRecord
     public string InvoiceId { get; set; } = string.Empty;
     public DateTime PerformanceDate { get; set; }
     public TransactionDirection Direction { get; set; }
+    public TransactionType TransactionType { get; set; } = TransactionType.Domestic;
     public string PartnerName { get; set; } = string.Empty;
     public string? TaxNumber { get; set; }
     public decimal NetAmount { get; set; }

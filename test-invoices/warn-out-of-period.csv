@@ -1,0 +1,6 @@
+﻿InvoiceId,PerformanceDate,Direction,TransactionType,PartnerName,TaxNumber,NetAmount,VatRate,VatAmount,GrossAmount
+INV-001,2024-01-15,Sale,Domestic,Acme Kft,12345678-1-41,100000,27,27000,127000
+INV-002,2024-01-20,Purchase,Domestic,Supplier Kft,99887766-1-41,80000,27,21600,101600
+INV-003,2024-03-05,Sale,Domestic,Beta Zrt,87654321-2-02,200000,5,10000,210000
+INV-004,2024-03-10,Purchase,Domestic,Gamma Bt,,30000,18,5400,35400
+INV-005,2024-04-01,Sale,Domestic,Delta Kft,11223344-3-03,150000,27,40500,190500

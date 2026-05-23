@@ -1,9 +1,24 @@
 using QuestPDF.Infrastructure;
+using Serilog;
 using VatCalculator.Api.Services;
 
 QuestPDF.Settings.License = LicenseType.Community;
 
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Console()
+    .CreateBootstrapLogger();
+
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Host.UseSerilog((ctx, services, cfg) =>
+    cfg.ReadFrom.Configuration(ctx.Configuration)
+       .ReadFrom.Services(services)
+       .WriteTo.Console()
+       .WriteTo.File(
+           "logs/app-.log",
+           rollingInterval: RollingInterval.Day,
+           retainedFileCountLimit: 7,
+           outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}"));
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>

@@ -2,7 +2,15 @@ export type TransactionDirection = 'Sale' | 'Purchase';
 
 export type VatRateKey = '27' | '18' | '5' | '0' | 'AAM';
 
+export type TransactionType =
+  | 'Domestic'
+  | 'IntraCommunitySale'
+  | 'IntraCommunityAcquisition'
+  | 'Import'
+  | 'ReverseCharge';
+
 export interface VatCategoryLine {
+  transactionType: TransactionType;
   vatRate: string;
   totalNet: number;
   totalVat: number;
