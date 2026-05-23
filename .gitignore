@@ -12,10 +12,12 @@ frontend/dist/
 frontend/.env.local
 frontend/.env.*.local
 
-# Env files (never commit secrets)
+# Env files and Azure credentials (never commit secrets)
 .env
 .env.local
 *.env
+publish-profile.xml
+*-secrets.txt
 
 # IDEs
 .vs/
