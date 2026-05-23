@@ -1,21 +1,118 @@
-.counter {
-  font-size: 16px;
-  padding: 5px 10px;
-  border-radius: 5px;
-  color: var(--accent);
-  background: var(--accent-bg);
-  border: 2px solid transparent;
-  transition: border-color 0.3s;
-  margin-bottom: 24px;
+/* ── Layout ── */
+.app { max-width: 960px; margin: 0 auto; padding: 0 16px 48px; }
 
-  &:hover {
-    border-color: var(--accent-border);
-  }
-  &:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-  }
+.app-header {
+  text-align: center;
+  padding: 40px 0 28px;
+  border-bottom: 1px solid #dee2e9;
+  margin-bottom: 32px;
 }
+.app-header h1 { font-size: 1.75rem; font-weight: 700; color: #0d1b4b; }
+.app-header p  { margin-top: 4px; color: #6b7280; font-size: 0.95rem; }
+
+.app-main { display: flex; flex-direction: column; gap: 24px; }
+
+/* ── Upload ── */
+.upload-area { width: 100%; }
+.dropzone {
+  border: 2px dashed #a0aec0;
+  border-radius: 10px;
+  padding: 48px 24px;
+  text-align: center;
+  cursor: pointer;
+  background: #fff;
+  transition: border-color 0.2s, background 0.2s;
+}
+.dropzone:hover, .dropzone.dragover {
+  border-color: #3b6ce6;
+  background: #eef2ff;
+}
+.dropzone-icon { font-size: 2.5rem; display: block; margin-bottom: 12px; }
+.dropzone p    { color: #4b5563; line-height: 1.6; }
+.dropzone-hint { font-size: 0.82rem; color: #9ca3af; margin-top: 4px; }
+.uploading     { margin-top: 12px; color: #3b6ce6; font-weight: 600; }
+.error-msg { color: #dc2626; font-size: 0.88rem; margin-top: 8px; }
+
+/* ── Error box ── */
+.error-box {
+  background: #fff5f5;
+  border: 1px solid #feb2b2;
+  border-radius: 8px;
+  padding: 20px 24px;
+}
+.error-box h3 { color: #c53030; margin-bottom: 10px; }
+.error-box ul { padding-left: 20px; }
+.error-box li { color: #742a2a; font-size: 0.9rem; margin-bottom: 4px; }
+.error-box .btn-secondary { margin-top: 16px; }
+
+/* ── Report ── */
+.report-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.report-header h2 { font-size: 1.3rem; color: #0d1b4b; }
+.report-meta {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 0.82rem;
+  color: #6b7280;
+  margin-top: 4px;
+}
+
+.section { margin-bottom: 28px; }
+.section h3 { font-size: 1rem; font-weight: 600; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid; }
+.section-blue h3  { color: #1d4ed8; border-color: #1d4ed8; }
+.section-green h3 { color: #15803d; border-color: #15803d; }
+.no-data { color: #9ca3af; font-style: italic; }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+}
+thead { background: #f1f5f9; }
+th, td { padding: 10px 14px; font-size: 0.88rem; text-align: left; border-bottom: 1px solid #e2e8f0; }
+th { font-weight: 600; color: #374151; }
+tbody tr:hover { background: #f8fafc; }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+tfoot .total-row td { font-weight: 700; background: #f1f5f9; border-top: 2px solid #cbd5e1; }
+
+/* ── Buttons ── */
+.btn-pdf {
+  padding: 9px 18px;
+  background: #1d4ed8;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+.btn-pdf:hover:not(:disabled) { background: #1e40af; }
+.btn-pdf:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.btn-secondary {
+  padding: 8px 16px;
+  background: transparent;
+  color: #4b5563;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-secondary:hover { background: #f9fafb; }
+.reset-row { text-align: center; }
 
 .hero {
   position: relative;

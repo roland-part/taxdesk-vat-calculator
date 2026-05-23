@@ -1,122 +1,94 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useState } from 'react';
+import { FileUpload } from './components/FileUpload';
+import { VatReportTable } from './components/VatReportTable';
+import { uploadCsv, downloadPdf, ApiError } from './api/vatApi';
+import type { VatReport } from './types/vatReport';
+import './App.css';
 
-function App() {
-  const [count, setCount] = useState(0)
+type AppState = 'idle' | 'uploading' | 'done' | 'error';
+
+export default function App() {
+  const [state, setState] = useState<AppState>('idle');
+  const [report, setReport] = useState<VatReport | null>(null);
+  const [errors, setErrors] = useState<string[]>([]);
+  const [isPdfLoading, setIsPdfLoading] = useState(false);
+
+  async function handleUpload(file: File) {
+    setState('uploading');
+    setErrors([]);
+    setReport(null);
+
+    try {
+      const result = await uploadCsv(file);
+      setReport(result);
+      setState('done');
+    } catch (err) {
+      if (err instanceof ApiError && err.fieldErrors?.['csv']) {
+        setErrors(err.fieldErrors['csv']);
+      } else if (err instanceof Error) {
+        setErrors([err.message]);
+      } else {
+        setErrors(['An unexpected error occurred.']);
+      }
+      setState('error');
+    }
+  }
+
+  async function handleDownloadPdf() {
+    if (!report) return;
+    setIsPdfLoading(true);
+    try {
+      await downloadPdf(report);
+    } catch {
+      setErrors(['Failed to generate PDF. Please try again.']);
+    } finally {
+      setIsPdfLoading(false);
+    }
+  }
+
+  function handleReset() {
+    setState('idle');
+    setReport(null);
+    setErrors([]);
+  }
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <div className="app">
+      <header className="app-header">
+        <h1>Hungarian VAT Declaration Generator</h1>
+        <p>ÁFA Bevallás Összesítő</p>
+      </header>
 
-      <div className="ticks"></div>
+      <main className="app-main">
+        {state !== 'done' && (
+          <FileUpload onUpload={handleUpload} isLoading={state === 'uploading'} />
+        )}
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+        {state === 'error' && errors.length > 0 && (
+          <div className="error-box">
+            <h3>Could not process the file</h3>
+            <ul>
+              {errors.map((e, i) => <li key={i}>{e}</li>)}
+            </ul>
+            <button className="btn-secondary" onClick={handleReset}>Try again</button>
+          </div>
+        )}
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+        {state === 'done' && report && (
+          <>
+            <VatReportTable
+              report={report}
+              onDownloadPdf={handleDownloadPdf}
+              isPdfLoading={isPdfLoading}
+            />
+            <div className="reset-row">
+              <button className="btn-secondary" onClick={handleReset}>
+                Upload another file
+              </button>
+            </div>
+          </>
+        )}
+      </main>
+    </div>
+  );
 }
-
-export default App

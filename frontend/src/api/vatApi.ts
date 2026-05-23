@@ -1,0 +1,47 @@
+import type { VatReport } from '../types/vatReport';
+
+const BASE_URL = 'http://localhost:5150/api/vat';
+
+export async function uploadCsv(file: File): Promise<VatReport> {
+  const form = new FormData();
+  form.append('file', file);
+
+  const res = await fetch(`${BASE_URL}/upload`, { method: 'POST', body: form });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: 'Upload failed.' }));
+    throw new ApiError(res.status, err.message, err.errors);
+  }
+
+  return res.json();
+}
+
+export async function downloadPdf(report: VatReport): Promise<void> {
+  const res = await fetch(`${BASE_URL}/report/pdf`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(report),
+  });
+
+  if (!res.ok) {
+    throw new ApiError(res.status, 'PDF generation failed.');
+  }
+
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `vat-report-${report.generatedAt.slice(0, 10)}.pdf`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+export class ApiError extends Error {
+  constructor(
+    public readonly status: number,
+    message: string,
+    public readonly fieldErrors?: Record<string, string[]>,
+  ) {
+    super(message);
+  }
+}
