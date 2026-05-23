@@ -23,7 +23,7 @@ public class VatController : ControllerBase
     }
 
     private static readonly System.Text.RegularExpressions.Regex PeriodPattern =
-        new(@"^(\d{4}-(0[1-9]|1[0-2])|\d{4}-Q[1-4])$");
+        new(@"^(\d{4}-(0[1-9]|1[0-2])|\d{4}-Q[1-4]|\d{4})$");
 
     /// <summary>
     /// Upload a CSV file of invoices/transactions and receive a structured VAT report.
@@ -62,6 +62,9 @@ public class VatController : ControllerBase
         var report = _vatCalculation.Calculate(
             result.Records, file.FileName, period,
             taxpayerName?.Trim(), taxpayerTaxNumber?.Trim());
+
+        // Prepend CSV-level warnings (cross-validation) before period warnings
+        report.Warnings.InsertRange(0, result.Warnings);
 
         return Ok(report);
     }

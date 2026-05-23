@@ -21,9 +21,10 @@ public class VatCalculationService : IVatCalculationService
         ["27"] = 0, ["18"] = 1, ["5"] = 2, ["0"] = 3, ["AAM"] = 4,
     };
 
-    // Matches "2024-01" (monthly) or "2024-Q2" (quarterly)
-    private static readonly Regex MonthlyPattern  = new(@"^(\d{4})-(0[1-9]|1[0-2])$");
+    // Matches "2024-01" (monthly), "2024-Q2" (quarterly), or "2024" (annual)
+    private static readonly Regex MonthlyPattern   = new(@"^(\d{4})-(0[1-9]|1[0-2])$");
     private static readonly Regex QuarterlyPattern = new(@"^(\d{4})-Q([1-4])$");
+    private static readonly Regex AnnualPattern    = new(@"^\d{4}$");
 
     public VatReportDto Calculate(
         List<InvoiceRecord> records,
@@ -112,6 +113,9 @@ public class VatCalculationService : IVatCalculationService
                 && date.Month >= startMonth
                 && date.Month <= startMonth + 2;
         }
+
+        if (AnnualPattern.IsMatch(period))
+            return date.Year == int.Parse(period);
 
         return true; // unknown format — don't warn
     }

@@ -199,6 +199,8 @@ public class VatReportPdfService : IVatReportPdfService
                                     '3' => "July–September", _ => "October–December" };
             return $"Q{q} {year} ({months})";
         }
+        if (System.Text.RegularExpressions.Regex.IsMatch(period, @"^\d{4}$"))
+            return $"{period} (Annual)";
         return period;
     }
 

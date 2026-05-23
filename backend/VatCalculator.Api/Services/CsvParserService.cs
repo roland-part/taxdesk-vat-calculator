@@ -5,7 +5,7 @@ using VatCalculator.Api.Models;
 
 namespace VatCalculator.Api.Services;
 
-public record CsvParseResult(List<InvoiceRecord> Records, List<string> Errors);
+public record CsvParseResult(List<InvoiceRecord> Records, List<string> Errors, List<string> Warnings);
 
 public interface ICsvParserService
 {
@@ -28,17 +28,18 @@ public class CsvParserService : ICsvParserService
     public async Task<CsvParseResult> ParseAsync(IFormFile file)
     {
         if (file.Length == 0)
-            return new CsvParseResult([], ["The uploaded file is empty."]);
+            return new CsvParseResult([], ["The uploaded file is empty."], []);
 
         if (file.Length > MaxFileSizeBytes)
-            return new CsvParseResult([], ["File exceeds the maximum allowed size of 10 MB."]);
+            return new CsvParseResult([], ["File exceeds the maximum allowed size of 10 MB."], []);
 
         var extension = Path.GetExtension(file.FileName);
         if (!AllowedExtensions.Contains(extension))
-            return new CsvParseResult([], [$"Invalid file type '{extension}'. Only .csv files are accepted."]);
+            return new CsvParseResult([], [$"Invalid file type '{extension}'. Only .csv files are accepted."], []);
 
         var records = new List<InvoiceRecord>();
-        var errors = new List<string>();
+        var errors   = new List<string>();
+        var warnings = new List<string>();
 
         try
         {
@@ -61,7 +62,7 @@ public class CsvParserService : ICsvParserService
                 .ToList();
 
             if (missingHeaders.Count > 0)
-                return new CsvParseResult([], [$"Missing required CSV columns: {string.Join(", ", missingHeaders)}"]);
+                return new CsvParseResult([], [$"Missing required CSV columns: {string.Join(", ", missingHeaders)}"], []);
 
             int rowNumber = 1;
             while (await csv.ReadAsync())
@@ -85,6 +86,7 @@ public class CsvParserService : ICsvParserService
                     if (record.TaxNumber != null)
                         record.TaxNumber = Sanitize(record.TaxNumber);
 
+                    warnings.AddRange(CrossValidateRecord(record, rowNumber));
                     records.Add(record);
                 }
                 catch (CsvHelperException ex)
@@ -95,13 +97,13 @@ public class CsvParserService : ICsvParserService
         }
         catch (Exception ex)
         {
-            return new CsvParseResult([], [$"Failed to read CSV file: {ex.Message}"]);
+            return new CsvParseResult([], [$"Failed to read CSV file: {ex.Message}"], []);
         }
 
         if (records.Count == 0 && errors.Count == 0)
-            return new CsvParseResult([], ["The CSV file contains no data rows."]);
+            return new CsvParseResult([], ["The CSV file contains no data rows."], []);
 
-        return new CsvParseResult(records, errors);
+        return new CsvParseResult(records, errors, warnings);
     }
 
     private static List<string> ValidateRecord(InvoiceRecord r, int row)
@@ -124,6 +126,31 @@ public class CsvParserService : ICsvParserService
             errors.Add($"Row {row}: GrossAmount must not be negative.");
 
         return errors;
+    }
+
+    // Cross-validates VatAmount and GrossAmount against calculated values.
+    // Returns non-blocking warnings; tolerance of ±1 to allow for legitimate rounding.
+    private static List<string> CrossValidateRecord(InvoiceRecord r, int row)
+    {
+        var warnings = new List<string>();
+        const decimal tolerance = 1m;
+
+        var vatRatePercent  = r.VatRate == "AAM" ? 0m : decimal.Parse(r.VatRate, CultureInfo.InvariantCulture);
+        var expectedVat     = r.NetAmount * (vatRatePercent / 100m);
+        var expectedGross   = r.NetAmount + expectedVat;
+
+        if (Math.Abs(r.VatAmount - expectedVat) > tolerance)
+            warnings.Add(
+                $"Row {row} ({r.InvoiceId}): VatAmount {r.VatAmount:N2} differs from calculated " +
+                $"{expectedVat:N2} (Net {r.NetAmount:N2} × {r.VatRate}{(r.VatRate == "AAM" ? "" : "%")}). " +
+                "Check for rounding errors.");
+
+        if (Math.Abs(r.GrossAmount - expectedGross) > tolerance)
+            warnings.Add(
+                $"Row {row} ({r.InvoiceId}): GrossAmount {r.GrossAmount:N2} differs from calculated " +
+                $"{expectedGross:N2} (Net + VAT). Check for rounding errors.");
+
+        return warnings;
     }
 
     // Strip control characters; prefix formula-injection characters so they are inert in any downstream renderer.

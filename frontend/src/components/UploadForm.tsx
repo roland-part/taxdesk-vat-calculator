@@ -6,7 +6,7 @@ interface Props {
   isLoading: boolean;
 }
 
-type PeriodType = 'monthly' | 'quarterly';
+type PeriodType = 'monthly' | 'quarterly' | 'annual';
 
 const MONTHS = [
   'January','February','March','April','May','June',
@@ -18,8 +18,9 @@ const currentYear = new Date().getFullYear();
 const YEARS = Array.from({ length: 5 }, (_, i) => currentYear - i);
 
 function buildPeriod(type: PeriodType, year: number, month: number, quarter: number): string {
-  if (type === 'monthly') return `${year}-${String(month).padStart(2, '0')}`;
-  return `${year}-Q${quarter}`;
+  if (type === 'monthly')  return `${year}-${String(month).padStart(2, '0')}`;
+  if (type === 'quarterly') return `${year}-Q${quarter}`;
+  return `${year}`;
 }
 
 export function UploadForm({ onSubmit, isLoading }: Props) {
@@ -71,14 +72,14 @@ export function UploadForm({ onSubmit, isLoading }: Props) {
         <legend>Declaration Period</legend>
 
         <div className="period-toggle">
-          {(['monthly', 'quarterly'] as PeriodType[]).map(t => (
+          {(['monthly', 'quarterly', 'annual'] as PeriodType[]).map(t => (
             <button
               key={t}
               type="button"
               className={`toggle-btn${periodType === t ? ' active' : ''}`}
               onClick={() => setPeriodType(t)}
             >
-              {t === 'monthly' ? 'Monthly' : 'Quarterly'}
+              {t.charAt(0).toUpperCase() + t.slice(1)}
             </button>
           ))}
         </div>
@@ -91,14 +92,16 @@ export function UploadForm({ onSubmit, isLoading }: Props) {
             </select>
           </div>
 
-          {periodType === 'monthly' ? (
+          {periodType === 'monthly' && (
             <div className="field">
               <label>Month</label>
               <select value={month} onChange={e => setMonth(Number(e.target.value))}>
                 {MONTHS.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
               </select>
             </div>
-          ) : (
+          )}
+
+          {periodType === 'quarterly' && (
             <div className="field">
               <label>Quarter</label>
               <select value={quarter} onChange={e => setQuarter(Number(e.target.value))}>

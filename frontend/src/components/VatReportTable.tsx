@@ -17,6 +17,7 @@ function formatPeriod(period: string): string {
     };
     return `Q${quarterly[2]} ${quarterly[1]} (${labels[quarterly[2]]})`;
   }
+  if (/^\d{4}$/.test(period)) return `${period} (Annual)`;
   return period;
 }
 
