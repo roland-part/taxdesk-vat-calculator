@@ -76,7 +76,7 @@ Negative amounts are supported for storno (reversing) and correction invoices.
 | `TransactionType` | No | `Domestic` (default when column is absent or blank), `IntraCommunitySale`, `IntraCommunityAcquisition`, `Import`, `ReverseCharge` |
 | `PartnerName` | Yes | Counterparty name, max 200 characters |
 | `TaxNumber` | No | Counterparty adószám — if provided must match `XXXXXXXX-Y-ZZ` |
-| `NetAmount` | Yes | Net amount in HUF, must not be negative |
+| `NetAmount` | Yes | Net amount in HUF. Negative values are accepted for storno (reversal) and correction invoices |
 | `VatRate` | Yes | `27`, `18`, `5`, `0`, or `AAM` (exempt) |
 | `VatAmount` | Yes | Cross-validated against `NetAmount × VatRate`; mismatches > 1 HUF produce a warning |
 | `GrossAmount` | Yes | Cross-validated against `NetAmount + VatAmount`; mismatches > 1 HUF produce a warning |
@@ -86,6 +86,8 @@ A `sample-invoices.csv` file covering all VAT rates and both directions is inclu
 ## AI conversation log
 
 The full, unedited conversation with Claude Code (the AI tool used to build this) is available in [`ai_log.md`](ai_log.md).
+
+> **Note for reviewers:** `ai_log.md` is exported from the Claude Code session transcript and committed separately. If the file is absent, the raw session log is stored locally at `.claude/projects/…/<session-id>.jsonl` and can be exported via Claude Code's `/export` command.
 
 ---
 
@@ -141,3 +143,107 @@ Both use the same regex but there is no shared source of truth. If the rules cha
 **Production-grade alternative:**
 - Expose validation rules via a dedicated API endpoint (e.g. `GET /api/vat/rules`) that the frontend fetches on load, or
 - Extract the rule into a shared library (NuGet package for the backend, npm package for the frontend) so a single change propagates automatically to both consumers.
+
+---
+
+### Self-assessed VAT — IntraCommunityAcquisition and Import
+
+**Current behaviour:** `IntraCommunityAcquisition` and `Import` transactions are grouped under the Purchases section only. The `VatPayable` figure is calculated as `Sales.GrandTotalVat − Purchases.GrandTotalVat`.
+
+**Known gap:** Under Hungarian VAT law (Act CXXVII of 2007) and Form 65, intra-Community acquisitions and imports trigger **self-assessment**: the buyer must declare the VAT amount as *both* output VAT (fizetendő ÁFA, sales side) and deductible input VAT (levonható ÁFA, purchases side) in the same period. The two entries cancel out in `VatPayable`, but both must appear in the formal declaration. The current implementation only shows these transactions on the purchases side, which understates the declared output VAT total for files containing these transaction types.
+
+**Production-grade fix:** In `VatCalculationService`, detect `IntraCommunityAcquisition` and `Import` purchase records and add a synthetic mirror entry to the Sales section (same VAT amount, labelled accordingly), so both sides of the declaration are complete even though the net tax position is unchanged.
+
+---
+
+### Application Insights — resource not provisioned
+
+**Current behaviour:** `Program.cs` conditionally activates the Serilog Application Insights sink when the `APPLICATIONINSIGHTS_CONNECTION_STRING` environment variable is present. The `Serilog.Sinks.ApplicationInsights` package is included. However, no Application Insights resource has been created in Azure, so the sink is dormant in production.
+
+**Next step:** Create an Application Insights resource in `rg-taxdesk-prod`, copy its connection string into the App Service environment variables, and structured log data will flow automatically with no further code changes.
+
+---
+
+### No automated tests
+
+**Current behaviour:** No unit test project exists for the backend (`VatCalculationService`, `CsvParserService`, cross-validation logic) and no component tests for the frontend.
+
+**Production-grade alternative:** Add an xUnit project (`VatCalculator.Api.Tests`) covering at minimum the calculation engine with a representative set of invoice fixtures, and Vitest tests for the `formatLineLabel` / `formatPeriod` helpers. The seven `test-invoices/` CSV files already in the repository provide a ready-made set of fixtures for integration-level testing of the CSV parser.
+
+---
+
+## Architecture Decision Records
+
+A summary of the key architectural choices made during development, for reviewer context.
+
+### ADR-001 — CSV as the input format
+
+**Decision:** Accept a plain UTF-8 CSV file rather than an Excel workbook (.xlsx) or a NAV-specific XML format.
+
+**Rationale:** No official NAV import format exists for ÁFA bevallás source data. XLSX parsing adds significant library complexity. CSV is universally exportable from any accounting system, maps directly to the data model, and allows the backend to enforce structure strictly via column headers. UTF-8 with BOM is required so Excel can open the sample file without re-encoding.
+
+**Trade-off:** Users working in Excel must use *File → Save As → CSV UTF-8 (with BOM)*; this is documented in the README and enforced with a clear error message on invalid encoding.
+
+---
+
+### ADR-002 — Stateless PDF generation (round-trip)
+
+**Decision:** The frontend holds the `VatReportDto` JSON in memory after `/upload`. Clicking *Download PDF* POSTs the full JSON back to `/report/pdf`, which regenerates the PDF on the fly.
+
+**Rationale:** Eliminates server-side session state that would be lost on pod restart or horizontal scale-out. No blob storage dependency required for the MVP.
+
+**Trade-off:** The PDF request payload is proportional to the report size (typically a few KB). The production-grade alternative — persisting to Azure Blob Storage and returning a SAS URL — is documented in the known enhancements section.
+
+---
+
+### ADR-003 — HUF-only amounts; no in-app currency conversion
+
+**Decision:** All CSV amounts are assumed to be pre-converted to HUF. The application does not accept or convert foreign currencies.
+
+**Rationale:** Hungarian VAT law (Act CXXVII of 2007) requires the declaration to be filed entirely in HUF. The applicable exchange rate (MNB rate on the teljesítési időpont, or ECB rate if contractually agreed) is specific to each invoice and is best resolved in the taxpayer's accounting software before export. Adding a conversion step would require either a live MNB API call per row or an additional CSV column — both are out of scope for the summary-report use case.
+
+---
+
+### ADR-004 — Deployment: Azure Static Web Apps + App Service (no Docker)
+
+**Decision:** Frontend on Azure Static Web Apps (Free → Standard); backend on Azure App Service Linux F1 with DOTNETCORE:9.0 runtime. No Dockerfile, no Container Apps.
+
+**Rationale:** App Service has native .NET runtime support — no container build step, no registry, no image versioning. SWA handles global CDN, HTTPS, and the linked-backend proxy in one resource. GitHub Actions workflows are straightforward `dotnet publish` + `az webapp deploy` / `static-web-apps-deploy`. Total infrastructure provisioning time: ~5 minutes via Azure CLI.
+
+**Trade-off:** F1 has no Always On; cold starts take 10–15 s. Container Apps would scale to zero more cheaply at idle but add Docker build complexity.
+
+---
+
+### ADR-005 — API access restriction via AzureCloud service tag
+
+**Decision:** The App Service accepts traffic only from the `AzureCloud` service tag (all Azure datacenter IPs). All browser traffic reaches the API through the SWA linked-backend proxy; direct calls return `403 Ip Forbidden`.
+
+**Rationale:** Azure Static Web Apps does not have its own service tag. Its proxy traffic originates from Azure-internal infrastructure, which is covered by `AzureCloud`. This blocks all non-Azure internet traffic with zero application-layer changes.
+
+**Trade-off:** `AzureCloud` is broader than needed — any other Azure-hosted service could theoretically reach the App Service URL. The production-grade fix (shared secret header injected by SWA, validated in ASP.NET Core middleware) is documented in the known enhancements section.
+
+---
+
+### ADR-006 — TransactionType as an optional, backward-compatible CSV column
+
+**Decision:** The `TransactionType` column is optional. When absent or blank, all rows default to `Domestic`. A custom `CsvHelper` type converter handles the defaulting.
+
+**Rationale:** Existing CSV exports from accounting systems will not have this column. Making it required would break backward compatibility and force users to modify their export templates before the first upload.
+
+---
+
+### ADR-007 — No authentication; single-function public API
+
+**Decision:** The API has no user authentication, no sessions, and no per-user data persistence. Every request is stateless and self-contained.
+
+**Rationale:** The tool is a document-processing utility, not a multi-tenant SaaS application. The input (CSV) and output (JSON + PDF) are handled entirely client-side between requests. Rate limiting, network-level access restriction, and request size limits provide adequate protection for a publicly accessible tool of this scope.
+
+**Trade-off:** Any authenticated user of the SWA URL can submit files. For a production tax-office deployment, Azure AD B2C or Entra ID authentication would be the natural next layer.
+
+---
+
+### ADR-008 — Built-in ASP.NET Core middleware for all security primitives
+
+**Decision:** Rate limiting (`AddRateLimiter`), request timeouts (`AddRequestTimeouts`), and security headers are implemented using ASP.NET Core 8+ built-in APIs. No third-party middleware packages (e.g. AspNetCoreRateLimit, NWebSec) were added.
+
+**Rationale:** The built-in implementations cover the required policies without additional NuGet dependencies, reducing supply-chain surface area and keeping the csproj minimal.
