@@ -1,6 +1,33 @@
 # Hungarian VAT Declaration Generator
 
-A web application that processes invoice/transaction CSV files and generates a formally correct Hungarian VAT Declaration (ÁFA bevallás) report summary, including PDF export.
+> **Demo application** — This is a coding challenge submission, not a production service. It processes invoice CSV files and generates a Hungarian VAT Declaration (ÁFA bevallás) report summary, including PDF export. Feel free to try it with the test files below.
+
+## Live application
+
+**[https://icy-grass-014755103.7.azurestaticapps.net](https://icy-grass-014755103.7.azurestaticapps.net)**
+
+> The backend runs on Azure App Service F1 (free tier) — the first request after a period of inactivity may take 10–15 seconds while the process warms up.
+
+## Test files
+
+A set of ready-made CSV files is included in the repository to exercise different scenarios:
+
+| File | What it tests |
+|---|---|
+| [`sample-invoices.csv`](sample-invoices.csv) | Happy-path: all VAT rates (27%, 18%, 5%, 0%, AAM), both directions, storno and ICA rows |
+| [`test-invoices/warn-amount-mismatch.csv`](test-invoices/warn-amount-mismatch.csv) | Rows where VatAmount or GrossAmount don't match the calculated values (produces warnings) |
+| [`test-invoices/warn-duplicate-ids.csv`](test-invoices/warn-duplicate-ids.csv) | Duplicate InvoiceId values (produces warnings) |
+| [`test-invoices/warn-out-of-period.csv`](test-invoices/warn-out-of-period.csv) | Rows whose PerformanceDate falls outside the declared period (produces warnings) |
+| [`test-invoices/invalid-missing-columns.csv`](test-invoices/invalid-missing-columns.csv) | Required columns absent (hard error, no report produced) |
+| [`test-invoices/invalid-row-errors.csv`](test-invoices/invalid-row-errors.csv) | Invalid field values on individual rows (hard errors) |
+| [`test-invoices/invalid-type-direction-mismatch.csv`](test-invoices/invalid-type-direction-mismatch.csv) | TransactionType/Direction combinations that are logically inconsistent (hard errors) |
+| [`test-invoices/invalid-mixed-errors-and-warnings.csv`](test-invoices/invalid-mixed-errors-and-warnings.csv) | Mix of hard errors and warnings in the same file |
+
+## AI conversation log
+
+The full, unedited conversation with Claude Code (the AI tool used to build this) is available in [`ai_log.md`](ai_log.md).
+
+> **Note for reviewers:** `ai_log.md` is exported from the Claude Code session transcript and committed separately. If the file is absent, the raw session log is stored locally at `.claude/projects/…/<session-id>.jsonl` and can be exported via Claude Code's `/export` command.
 
 ## Tech stack
 
@@ -18,36 +45,11 @@ A web application that processes invoice/transaction CSV files and generates a f
 taxdesk-vat-calculator/
 ├── backend/          # ASP.NET Core 9 Web API
 ├── frontend/         # React + TypeScript (Vite)
+├── test-invoices/    # CSV fixtures for testing error and warning scenarios
 └── sample-invoices.csv
 ```
 
 No monorepo tooling (Nx, Turborepo, pnpm workspaces) — the two projects are independent and only share this root folder.
-
-## Getting started
-
-### Prerequisites
-
-- .NET 9 SDK
-- Node.js 18+
-
-### Backend
-
-```bash
-cd backend/VatCalculator.Api
-dotnet run
-```
-
-API listens on `http://localhost:5150`.
-
-### Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-App runs at `http://localhost:5173`.
 
 ## Input file format
 
@@ -81,14 +83,6 @@ Negative amounts are supported for storno (reversing) and correction invoices.
 | `VatAmount` | Yes | Cross-validated against `NetAmount × VatRate`; mismatches > 1 HUF produce a warning |
 | `GrossAmount` | Yes | Cross-validated against `NetAmount + VatAmount`; mismatches > 1 HUF produce a warning |
 
-A `sample-invoices.csv` file covering all VAT rates and both directions is included in the repository root.
-
-## AI conversation log
-
-The full, unedited conversation with Claude Code (the AI tool used to build this) is available in [`ai_log.md`](ai_log.md).
-
-> **Note for reviewers:** `ai_log.md` is exported from the Claude Code session transcript and committed separately. If the file is absent, the raw session log is stored locally at `.claude/projects/…/<session-id>.jsonl` and can be exported via Claude Code's `/export` command.
-
 ---
 
 ## Known enhancements / out-of-scope items
@@ -105,6 +99,8 @@ The items below were identified during development but are deliberately deferred
 1. After `/upload`, persist the `VatReportDto` to **Azure Blob Storage** and return a short-lived SAS URL alongside the JSON response.
 2. The `/report/pdf` endpoint accepts only the blob reference (not the full payload), fetches the report from storage, generates the PDF, and can optionally write the result back to blob storage for caching.
 3. This keeps request payloads small, enables async/background PDF generation, and provides an audit trail of generated declarations.
+
+---
 
 ### Foreign currency invoices — conversion to HUF
 
@@ -247,3 +243,31 @@ A summary of the key architectural choices made during development, for reviewer
 **Decision:** Rate limiting (`AddRateLimiter`), request timeouts (`AddRequestTimeouts`), and security headers are implemented using ASP.NET Core 8+ built-in APIs. No third-party middleware packages (e.g. AspNetCoreRateLimit, NWebSec) were added.
 
 **Rationale:** The built-in implementations cover the required policies without additional NuGet dependencies, reducing supply-chain surface area and keeping the csproj minimal.
+
+---
+
+## Getting started (local development)
+
+### Prerequisites
+
+- .NET 9 SDK
+- Node.js 18+
+
+### Backend
+
+```bash
+cd backend/VatCalculator.Api
+dotnet run
+```
+
+API listens on `http://localhost:5150`.
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+App runs at `http://localhost:5173`.
