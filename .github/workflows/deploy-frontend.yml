@@ -10,7 +10,7 @@ on:
 
 env:
   NODE_VERSION: '20'
-  VITE_API_BASE_URL: https://app-taxdesk-api-prod.azurewebsites.net
+  VITE_API_BASE_URL: https://icy-grass-014755103.7.azurestaticapps.net
 
 jobs:
   build-and-deploy:
