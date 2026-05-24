@@ -114,6 +114,21 @@ Foreign currency invoices (e.g. EUR for intra-Community acquisitions) are valid 
 
 ---
 
+### Backend API access restriction — AzureCloud service tag
+
+**Current behaviour:** The App Service (`app-taxdesk-api-prod`) is protected by an Azure access restriction that allows only the `AzureCloud` service tag and denies all public internet traffic. All API calls flow through the Azure Static Web Apps linked backend proxy (`stapp-taxdesk-prod`), so the App Service URL returns `403 Ip Forbidden` when called directly from outside Azure.
+
+**Limitation:** The `AzureCloud` service tag covers the entire Azure datacenter IP space, not just this application's SWA instance. Any other service running inside Azure could technically reach the App Service URL directly.
+
+**Production-grade alternative:** Layer a shared secret on top of the network restriction:
+1. Generate a random secret and store it as an App Service environment variable.
+2. Configure the SWA linked backend to inject the secret as a custom request header on every proxied call.
+3. Add a middleware to the ASP.NET Core pipeline that rejects any request missing the correct header with `403`.
+
+This scopes access to exactly one SWA instance without requiring a VNet or Private Link, and the secret is never exposed to the browser.
+
+---
+
 ### Tax number validation — duplicated regex
 
 **Current behaviour:** The Hungarian adószám format (`XXXXXXXX-Y-ZZ`) is validated independently in two places:
